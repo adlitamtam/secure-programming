@@ -1,13 +1,13 @@
-# Threat Model & System Architecture
+# Threat Model and System Architecture
 
-## 1. Technical Decisions & Cryptographic Scheme
-* **Language & Runtime:** Java 17+ (LTS)
+## 1. Technical Decisions and Cryptographic Scheme
+* **Language:** Java 17+ 
 * **Libraries:**
     * `org.bouncycastle:bcprov-jdk18on` – Cryptographic provider for Argon2id and AES-256-GCM primitives.
     * `org.xerial:sqlite-jdbc` – Embedded local relational database.
     * `ch.qos.logback:logback-classic` – Structured logging without secret exposure.
 * **Cryptographic Scheme:**
-    * **Key Derivation / Auth:** Argon2id derives an authentication key (K_auth) and an encryption key (K_enc).
+    * **Key Derivation:** Argon2id derives an authentication key (K_auth) and an encryption key (K_enc).
     * **Vault Encryption:** AES-256-GCM providing confidentiality and tamper-evident authentication tags.
 * **Vault Storage Format:** Local embedded SQLite database (`vault.db`) storing salts, hashes, initialization vectors (nonces), and ciphertext blobs.
 
@@ -15,7 +15,7 @@
 
 ## 2. Threat Model
 
-### Trust Boundaries & Key Locations
+### Trust Boundaries and Key Locations
 * **Volatile Memory (RAM / Client):** Master password (`char[]`) and K_enc are kept temporarily in memory and overwritten immediately after use.
 * **Storage at Rest (Disk / Database):** Untrusted boundary. Holds only ciphertexts, salts, and nonces. No plaintext secrets or keys ever touch the disk.
 * **User Interface (Console):** Boundary where user commands and credentials enter the system.
@@ -31,11 +31,11 @@
 
 ---
 
-## 3. Architecture & Data Flows
+## 3. Architecture and Data Flows
 
 ![PassVault Architecture](docs/architecture.png)
 
-### Flow 1: Authentication & Vault Unlock (Login)
+### Flow 1: Authentication and Login
 1. **User → Presentation Layer:** Inputs `username` and `masterPassword` (masked `char[]`).
 2. **Presentation Layer → User Management Module:** Passes input through `InputValidator` to `AuthenticationService`.
 3. **AuthenticationService → Storage Layer (UserDao):** Queries user record (`salt`, `auth_hash`) via parameterized SQL.

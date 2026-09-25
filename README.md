@@ -12,7 +12,7 @@ A command-line password manager written in Java, built for the ICS0022 semester 
 
 The application operates locally using an embedded SQLite database. It follows a zero-knowledge approach: your master password is never written to disk, nor is the raw encryption key.
 
-### Data Flow & Cryptography
+### Data Flow and Cryptography
 1. **Master Password & Derivation:**
    * When creating an account, a random 16-byte salt is generated.
    * I use **Argon2id** (via Bouncy Castle) to derive two keys from your master password:
@@ -33,14 +33,14 @@ The application operates locally using an embedded SQLite database. It follows a
 
 ---
 
-## 2. Requirements & Dependencies
+## 2. Requirements and Dependencies
 
 * JDK 21 or newer
 * Apache Maven 3.8+
 * Dependencies (handled via Maven `pom.xml`):
    * `org.bouncycastle:bcprov-jdk18on` (for Argon2id and crypto primitives)
    * `org.xerial:sqlite-jdbc` (local database)
-   * `org.slf4j:slf4j-api` & `ch.qos.logback:logback-classic` (structured logging)
+   * `org.slf4j:slf4j-api` and `ch.qos.logback:logback-classic` (structured logging)
 
 ---
 
@@ -63,7 +63,7 @@ java -jar target/secure-password-manager-1.0.0-SNAPSHOT.jar
 
 ---
 
-## 4. Usage & Commands
+## 4. Usage and Commands
 
 Running `java -jar target/passvault-1.0.jar` launches an interactive prompt:
 ```

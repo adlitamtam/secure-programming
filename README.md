@@ -1,6 +1,8 @@
 # Secure Password Manager
 
-**Course:** ICS0022 Secure Programming (Tallinn University of Technology
+**Course:** ICS0022 Secure Programming (Tallinn University of Technology)
+
+**Student:** Matilda Thurso (266057IV) - matilt@taltech.ee
 
 A command-line password manager written in Java, built for the ICS0022 semester project. The goal is to provide a local credential store that protects passwords at rest and in memory using standard cryptographic algorithms and secure coding practices.
 
@@ -13,7 +15,7 @@ The application operates locally using an embedded SQLite database. It follows a
 ### Data Flow & Cryptography
 1. **Master Password & Derivation:**
    * When creating an account, a random 16-byte salt is generated.
-   * We use **Argon2id** (via Bouncy Castle) to derive two keys from your master password:
+   * I use **Argon2id** (via Bouncy Castle) to derive two keys from your master password:
       * An authentication hash to verify your identity on login.
       * A 256-bit encryption key (`K_enc`) kept in memory while the vault session is open.
 2. **Adding an Entry:**
@@ -56,7 +58,7 @@ This compiles the code, executes unit tests, and produces an executable JAR file
 ### Running the App
 Run the compiled JAR:
 ```bash
-java -jar target/passvault-1.0.jar
+java -jar target/secure-password-manager-1.0.0-SNAPSHOT.jar
 ````
 
 ---

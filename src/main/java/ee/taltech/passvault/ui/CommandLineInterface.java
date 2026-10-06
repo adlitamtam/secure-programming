@@ -3,8 +3,11 @@ package ee.taltech.passvault.ui;
 import ee.taltech.passvault.auth.AuthenticationService;
 import ee.taltech.passvault.auth.UserSession;
 import ee.taltech.passvault.crypto.MemoryWiper;
+import ee.taltech.passvault.storage.VaultService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 /**
  * Interactive Command Line Interface for PassVault.
@@ -22,11 +25,13 @@ public class CommandLineInterface {
 
     private final AuthenticationService authService;
     private UserSession activeSession = null;
+    private final VaultService vaultService;
 
     public CommandLineInterface() {
         this.consoleReader = new ConsoleReader();
         this.clipboardService = new ClipboardService();
         this.authService = new AuthenticationService();
+        this.vaultService = new VaultService();
     }
 
     /**
@@ -203,17 +208,21 @@ public class CommandLineInterface {
     }
 
     private void handleListItems() {
+        List<String> services = vaultService.listServices(activeSession);
         System.out.println("\nStored Services for '" + activeUser + "':");
-        // TODO: Call VaultItemDao.getServicesForUser(userId)
-        System.out.println(" - github.com (MOCK)");
-        System.out.println(" - gmail.com (MOCK)");
+        if (services.isEmpty()) {
+            System.out.println(" (No entries found in vault)");
+        } else {
+            for (String s : services) {
+                System.out.println(" - " + s);
+            }
+        }
     }
 
     private void handleAddCredential(String service) {
         if (service.isBlank()) {
             service = consoleReader.readLine("Enter service/domain name (e.g. github.com): ");
         }
-
         if (service.isBlank()) {
             System.out.println("Error: Service name cannot be empty.");
             return;
@@ -228,9 +237,12 @@ public class CommandLineInterface {
                 return;
             }
 
-            // TODO: Call VaultService.addEntry(activeUser, service, accountUsername, password)
-            logger.info("Credential added for service '{}' under user '{}'", service, activeUser);
-            System.out.println("SUCCESS: Credential for '" + service + "' stored securely (MOCK).");
+            boolean success = vaultService.addEntry(activeSession, service, accountUsername, password);
+            if (success) {
+                System.out.println("SUCCESS: Credential for '" + service + "' encrypted and stored!");
+            } else {
+                System.out.println("Error: Could not store credential.");
+            }
         } finally {
             MemoryWiper.wipe(password);
         }
@@ -240,22 +252,23 @@ public class CommandLineInterface {
         if (service.isBlank()) {
             service = consoleReader.readLine("Enter service name to retrieve: ");
         }
-
         if (service.isBlank()) {
             System.out.println("Error: Service name cannot be empty.");
             return;
         }
 
-        // TODO: Call VaultService.getDecryptedPassword(activeUser, service)
-        char[] mockDecryptedPassword = "SuperSecretPassword123!".toCharArray();
-
-        try {
-            // Pass directly to clipboard helper without printing cleartext to stdout
-            clipboardService.copyToClipboard(mockDecryptedPassword, 30);
-            System.out.println("SUCCESS: Password for '" + service + "' copied to clipboard.");
-            System.out.println("Notice: Clipboard will automatically be cleared in 30 seconds.");
-        } finally {
-            MemoryWiper.wipe(mockDecryptedPassword);
+        var passwordOpt = vaultService.getDecryptedPassword(activeSession, service);
+        if (passwordOpt.isPresent()) {
+            char[] decryptedPassword = passwordOpt.get();
+            try {
+                clipboardService.copyToClipboard(decryptedPassword, 30);
+                System.out.println("SUCCESS: Password for '" + service + "' copied to system clipboard.");
+                System.out.println("Notice: Clipboard will automatically be cleared in 30 seconds.");
+            } finally {
+                MemoryWiper.wipe(decryptedPassword);
+            }
+        } else {
+            System.out.println("Error: No entry found for service '" + service + "'.");
         }
     }
 
@@ -263,7 +276,6 @@ public class CommandLineInterface {
         if (service.isBlank()) {
             service = consoleReader.readLine("Enter service name to delete: ");
         }
-
         if (service.isBlank()) {
             System.out.println("Error: Service name cannot be empty.");
             return;
@@ -271,9 +283,12 @@ public class CommandLineInterface {
 
         String confirm = consoleReader.readLine("Are you sure you want to delete '" + service + "'? (y/N): ");
         if (confirm.equalsIgnoreCase("y")) {
-            // TODO: Call VaultService.deleteEntry(activeUser, service)
-            logger.info("Credential deleted for service '{}' under user '{}'", service, activeUser);
-            System.out.println("SUCCESS: Entry for '" + service + "' removed from vault (MOCK).");
+            boolean success = vaultService.deleteEntry(activeSession, service);
+            if (success) {
+                System.out.println("SUCCESS: Entry for '" + service + "' removed from vault.");
+            } else {
+                System.out.println("Error: Could not delete entry (item not found).");
+            }
         } else {
             System.out.println("Deletion canceled.");
         }

@@ -1,5 +1,7 @@
 package ee.taltech.passvault.ui;
 
+import ee.taltech.passvault.auth.AuthenticationService;
+import ee.taltech.passvault.auth.UserSession;
 import ee.taltech.passvault.crypto.MemoryWiper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,13 +17,16 @@ public class CommandLineInterface {
     private final ConsoleReader consoleReader;
     private final ClipboardService clipboardService;
 
-    // Session state placeholders (will be replaced by UserSession in later phases)
     private boolean isLoggedIn = false;
     private String activeUser = null;
+
+    private final AuthenticationService authService;
+    private UserSession activeSession = null;
 
     public CommandLineInterface() {
         this.consoleReader = new ConsoleReader();
         this.clipboardService = new ClipboardService();
+        this.authService = new AuthenticationService();
     }
 
     /**
@@ -108,14 +113,16 @@ public class CommandLineInterface {
                 return;
             }
 
-            // TODO: Call AuthenticationService.registerUser(username, masterPassword)
-            logger.info("User registration triggered for: {}", username);
-            System.out.println("SUCCESS: User '" + username + "' successfully registered (MOCK).");
+            boolean success = authService.registerUser(username, masterPassword);
+            if (success) {
+                System.out.println("SUCCESS: User '" + username + "' successfully registered!");
+            } else {
+                System.out.println("Error: Username '" + username + "' is already taken.");
+            }
 
         } catch (IllegalArgumentException e) {
             System.out.println("Error: " + e.getMessage());
         } finally {
-            // Defensive memory wiping of input array
             MemoryWiper.wipe(masterPassword);
         }
     }
@@ -135,17 +142,16 @@ public class CommandLineInterface {
         char[] masterPassword = consoleReader.readPassword("Master Password: ");
 
         try {
-            // TODO: Call AuthenticationService.authenticate(username, masterPassword)
-            if (masterPassword.length > 0) { // Temporary dummy check
+            var sessionOpt = authService.authenticate(username, masterPassword);
+            if (sessionOpt.isPresent()) {
+                this.activeSession = sessionOpt.get();
                 this.isLoggedIn = true;
-                this.activeUser = username;
-                logger.info("User '{}' logged in successfully.", username);
-                System.out.println("SUCCESS: Vault unlocked for user '" + username + "'.");
+                this.activeUser = activeSession.getUsername();
+                System.out.println("SUCCESS: Vault unlocked for user '" + activeUser + "'.");
             } else {
-                System.out.println("Authentication failed: Password cannot be empty.");
+                System.out.println("Authentication failed: Invalid username or master password.");
             }
         } finally {
-            // Zero out input password array immediately after authentication attempt
             MemoryWiper.wipe(masterPassword);
         }
     }
@@ -274,9 +280,11 @@ public class CommandLineInterface {
     }
 
     private void handleLogout() {
-        // TODO: Call UserSession.invalidate() to clear K_enc from memory
-        System.out.println("Vault locked. Active session cleared.");
-        logger.info("User '{}' logged out.", activeUser);
+        if (activeSession != null) {
+            activeSession.invalidate(); // Clear K_enc from RAM!
+            activeSession = null;
+        }
+        System.out.println("Vault locked. Active session and encryption keys cleared from memory.");
         this.isLoggedIn = false;
         this.activeUser = null;
     }

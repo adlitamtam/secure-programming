@@ -69,7 +69,6 @@ public class AuthenticationService {
             return Optional.empty();
         }
 
-        // 1. Fetch stored user record from database
         Optional<User> userOpt = userDao.getUserByUsername(username);
         if (userOpt.isEmpty()) {
             logger.warn("Authentication failed: User '{}' not found.", username);
@@ -81,19 +80,17 @@ public class AuthenticationService {
         byte[] encryptionKey = null;
 
         try {
-            // 2. Re-derive authentication key from provided master password and user's stored salt
             derivedAuthKey = keyDerivationService.deriveKey(masterPassword, user.getSalt());
-            String computedHashHex = HexFormat.of().formatHex(derivedAuthKey);
+            String computedHashHex = HexFormat.of().formatHex(derivedAuthKey).toLowerCase();
+            String storedHashHex = user.getAuthHash().toLowerCase();
 
-            // 3. Verify against stored auth_hash (Constant-time string comparison)
-            if (!constantTimeEquals(computedHashHex, user.getAuthHash())) {
+            if (!constantTimeEquals(computedHashHex, storedHashHex)) {
                 logger.warn("Authentication failed: Invalid master password for user '{}'.", username);
                 return Optional.empty();
             }
 
-            // 4. Derive distinct 256-bit encryption key (K_enc) using salt with domain separation modifier
             byte[] encSalt = user.getSalt().clone();
-            encSalt[0] ^= 0x01; // Simple domain separation byte
+            encSalt[0] ^= 0x01; // Domain Separation Byte
             encryptionKey = keyDerivationService.deriveKey(masterPassword, encSalt);
 
             logger.info("Authentication successful for user '{}'. Session created.", username);

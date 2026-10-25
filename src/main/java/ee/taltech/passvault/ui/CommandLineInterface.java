@@ -257,12 +257,19 @@ public class CommandLineInterface {
             return;
         }
 
-        var passwordOpt = vaultService.getDecryptedPassword(activeSession, service);
-        if (passwordOpt.isPresent()) {
-            char[] decryptedPassword = passwordOpt.get();
+        var credOpt = vaultService.getCredential(activeSession, service);
+        if (credOpt.isPresent()) {
+            var credential = credOpt.get();
+            char[] decryptedPassword = credential.password();
+
             try {
+                // Display non-sensitive username in stdout
+                System.out.println("\nCredential found for '" + service + "':");
+                System.out.println("Username: " + credential.accountUsername());
+                System.out.println("Password: [COPIED TO CLIPBOARD]");
+
+                // Copy secret to clipboard without printing to stdout
                 clipboardService.copyToClipboard(decryptedPassword, 30);
-                System.out.println("SUCCESS: Password for '" + service + "' copied to system clipboard.");
                 System.out.println("Notice: Clipboard will automatically be cleared in 30 seconds.");
             } finally {
                 MemoryWiper.wipe(decryptedPassword);
@@ -309,4 +316,3 @@ public class CommandLineInterface {
         logger.info("Application shut down cleanly.");
     }
 }
-

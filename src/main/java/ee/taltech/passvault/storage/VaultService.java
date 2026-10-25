@@ -42,7 +42,19 @@ public class VaultService {
         return vaultItemDao.getServicesForUser(session.getUserId());
     }
 
-    public Optional<char[]> getDecryptedPassword(UserSession session, String service) {
+    /**
+     * Container record for holding retrieved vault item credentials.
+     */
+    public record DecryptedCredential(String accountUsername, char[] password) {}
+
+    /**
+     * Fetches and decrypts a vault item by service name.
+     *
+     * @param session Active user session.
+     * @param service Target service domain/name.
+     * @return Optional containing the username and decrypted password.
+     */
+    public Optional<DecryptedCredential> getCredential(UserSession session, String service) {
         if (session == null || service.isBlank()) {
             return Optional.empty();
         }
@@ -55,7 +67,7 @@ public class VaultService {
         VaultItem item = itemOpt.get();
         try {
             char[] decryptedPassword = cipher.decrypt(item.getCiphertext(), session.getEncryptionKey(), item.getNonce());
-            return Optional.of(decryptedPassword);
+            return Optional.of(new DecryptedCredential(item.getAccountUsername(), decryptedPassword));
         } catch (SecurityException e) {
             logger.error("Failed to decrypt item for service '{}': {}", service, e.getMessage());
             return Optional.empty();

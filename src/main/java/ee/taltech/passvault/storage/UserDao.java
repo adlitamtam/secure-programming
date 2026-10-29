@@ -1,6 +1,8 @@
 package ee.taltech.passvault.storage;
 
 import ee.taltech.passvault.auth.User;
+import ee.taltech.passvault.security.InputValidator;
+import ee.taltech.passvault.security.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +34,7 @@ public class UserDao {
      * @return true if user was successfully created, false if username already exists.
      */
     public boolean createUser(String username, byte[] salt, String authHash) {
+        InputValidator.validateUsername(username);
         String sql = "INSERT INTO users (username, salt, auth_hash) VALUES (?, ?, ?)";
 
         try (Connection conn = dbManager.getConnection();
@@ -42,15 +45,15 @@ public class UserDao {
             pstmt.setString(3, authHash);
 
             int affectedRows = pstmt.executeUpdate();
-            logger.info("User '{}' registered successfully.", username);
+            logger.info("User '{}' registered successfully.", LogSanitizer.sanitize(username));
             return affectedRows > 0;
 
         } catch (SQLException e) {
             if (e.getErrorCode() == 19 || e.getMessage().contains("UNIQUE constraint failed")) {
-                logger.warn("Registration attempt failed: Username '{}' already exists.", username);
+                logger.warn("Registration attempt failed: Username '{}' already exists.", LogSanitizer.sanitize(username));
                 return false;
             }
-            logger.error("Database error while creating user '{}': {}", username, e.getMessage());
+            logger.error("Database error while creating user '{}': {}", LogSanitizer.sanitize(username), e.getMessage());
             throw new RuntimeException("Failed to register user due to a database error.", e);
         }
     }

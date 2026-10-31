@@ -3,10 +3,7 @@ package ee.taltech.passvault.storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.BufferedReader;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -19,25 +16,13 @@ import java.sql.Statement;
 public class DatabaseManager {
 
     private static final Logger logger = LoggerFactory.getLogger(DatabaseManager.class);
-    private static final String DB_URL = "jdbc:sqlite:vault.db";
+    private static final String DB_FILE = "vault.db";
+    private static final String DB_URL = "jdbc:sqlite:" + DB_FILE + "?busy_timeout=5000";
     private static DatabaseManager instance;
-    private Connection connection;
 
     private DatabaseManager() {
-        try {
-            this.connection = DriverManager.getConnection(DB_URL);
-            enablePragmas();
-            initializeSchema();
-            logger.info("Database connection established and schema initialized successfully.");
-        } catch (SQLException e) {
-            logger.error("Failed to initialize database: {}", e.getMessage());
-            throw new RuntimeException("Database initialization failed", e);
-        }
     }
 
-    /**
-     * Singleton instance getter.
-     */
     public static synchronized DatabaseManager getInstance() {
         if (instance == null) {
             instance = new DatabaseManager();
@@ -46,76 +31,87 @@ public class DatabaseManager {
     }
 
     /**
-     * Returns the active database connection.
+     * Obtains a fresh database connection.
      */
-    public Connection getConnection() {
-        try {
-            if (connection == null || connection.isClosed()) {
-                connection = DriverManager.getConnection(DB_URL);
-                enablePragmas();
-            }
-        } catch (SQLException e) {
-            logger.error("Error checking/reopening connection: {}", e.getMessage());
-        }
-        return connection;
-    }
-
-    /**
-     * Enforces SQLite PRAGMAs (Foreign Key Constraints & WAL mode).
-     */
-    private void enablePragmas() throws SQLException {
-        try (Statement stmt = connection.createStatement()) {
+    public Connection getConnection() throws SQLException {
+        Connection conn = DriverManager.getConnection(DB_URL);
+        try (Statement stmt = conn.createStatement()) {
             stmt.execute("PRAGMA foreign_keys = ON;");
             stmt.execute("PRAGMA journal_mode = WAL;");
         }
+        return conn;
     }
 
     /**
-     * Reads schema.sql from resources and executes table creation.
+     * Pre-flight health check to verify write permissions and create tables if needed.
+     *
+     * @return true if database is fully operational, false if severe I/O errors occur.
      */
-    private void initializeSchema() throws SQLException {
-        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("schema.sql");
-        if (inputStream == null) {
-            logger.error("schema.sql resource file not found!");
-            throw new IllegalStateException("schema.sql file not found in resources");
+    public boolean initializeAndValidate() {
+        File dbFile = new File(DB_FILE);
+        File parentDir = dbFile.getAbsoluteFile().getParentFile();
+
+        if (parentDir != null && !parentDir.canWrite()) {
+            logger.error("Database directory is not writable: {}", parentDir.getAbsolutePath());
+            System.err.println("Critical Error: Cannot write to database directory. Check file permissions.");
+            return false;
         }
 
-        StringBuilder sqlBuilder = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                // Ignore comments and empty lines
-                if (!line.trim().startsWith("--") && !line.trim().isEmpty()) {
-                    sqlBuilder.append(line).append("\n");
-                }
-            }
-        } catch (IOException e) {
-            logger.error("Failed to read schema.sql: {}", e.getMessage());
-            throw new RuntimeException("Could not read schema.sql", e);
-        }
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement()) {
 
-        // Split multiple SQL statements separated by semicolon
-        String[] statements = sqlBuilder.toString().split(";");
-        try (Statement stmt = connection.createStatement()) {
-            for (String sql : statements) {
-                if (!sql.trim().isEmpty()) {
-                    stmt.execute(sql.trim());
-                }
-            }
-        }
-    }
+            String createUsersTable = """
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    salt BLOB NOT NULL,
+                    auth_hash TEXT NOT NULL
+                );
+            """;
 
-    /**
-     * Closes the database connection cleanly on shutdown.
-     */
-    public void closeConnection() {
-        try {
-            if (connection != null && !connection.isClosed()) {
-                connection.close();
-                logger.info("Database connection closed.");
-            }
+            String createVaultItemsTable = """
+                CREATE TABLE IF NOT EXISTS vault_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    service TEXT NOT NULL,
+                    account_username TEXT NOT NULL,
+                    ciphertext BLOB NOT NULL,
+                    nonce BLOB NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                );
+            """;
+
+            stmt.execute(createUsersTable);
+            stmt.execute(createVaultItemsTable);
+
+            logger.info("Database schema initialized and validated successfully.");
+            return true;
+
         } catch (SQLException e) {
-            logger.error("Error closing database connection: {}", e.getMessage());
+            logger.error("Failed to initialize database: {}", e.getMessage());
+            System.err.println("Critical Error: Could not connect to or setup database. " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Checks if the database file still exists and contains the required schema.
+     * Used during runtime to detect accidental DB file deletion.
+     */
+    public boolean isDatabaseAlive() {
+        File dbFile = new File(DB_FILE);
+        if (!dbFile.exists()) {
+            logger.warn("Database file '{}' was deleted at runtime!", DB_FILE);
+            return false;
+        }
+
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.executeQuery("SELECT 1 FROM users LIMIT 1");
+            return true;
+        } catch (SQLException e) {
+            logger.warn("Database health check failed: {}", e.getMessage());
+            return false;
         }
     }
 }

@@ -1,10 +1,10 @@
 package ee.taltech.passvault.ui;
 
 import ee.taltech.passvault.crypto.MemoryWiper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.Console;
+import java.util.Arrays;
+import java.util.Scanner;
 
 /**
  * Securely reads user inputs from the system console.
@@ -12,14 +12,12 @@ import java.io.Console;
  */
 public class ConsoleReader {
 
-    private static final Logger logger = LoggerFactory.getLogger(ConsoleReader.class);
     private final Console console;
+    private final Scanner fallbackScanner;
 
     public ConsoleReader() {
         this.console = System.console();
-        if (this.console == null) {
-            logger.warn("No interactive console available. The application must be run from a standard terminal.");
-        }
+        this.fallbackScanner = (console == null) ? new Scanner(System.in) : null;
     }
 
     /**
@@ -28,30 +26,35 @@ public class ConsoleReader {
      * @return true if System.console() is accessible.
      */
     public boolean isConsoleAvailable() {
-        return this.console != null;
+        return console != null || fallbackScanner != null;
     }
 
-    /**
-     * Securely reads a password or secret input from the console without terminal echo.
-     *
-     * @param prompt User-facing prompt message.
-     * @return char array containing the entered password.
-     * @throws IllegalStateException if running in a non-interactive environment.
-     */
-    public char[] readPassword(String prompt) {
-        if (!isConsoleAvailable()) {
-            logger.error("Attempted to read password without an attached TTY console.");
-            throw new IllegalStateException("Interactive TTY console required for secure password input.");
+    public String readLine(String prompt) {
+        System.out.print(prompt);
+        String input = null;
+        if (console != null) {
+            input = console.readLine();
+        } else if (fallbackScanner != null && fallbackScanner.hasNextLine()) {
+            input = fallbackScanner.nextLine();
         }
+        if (input == null) {
+            return null;
+        }
+        return input.replace("\r", "");
+    }
 
-        char[] password = console.readPassword("%s", prompt);
-
-        if (password == null) {
-            logger.warn("User terminated console input (EOF/Ctrl+D).");
+    public char[] readPassword(String prompt) {
+        System.out.print(prompt);
+        if (console != null) {
+            char[] pwd = console.readPassword();
+            return (pwd != null) ? pwd : new char[0];
+        } else {
+            if (fallbackScanner != null && fallbackScanner.hasNextLine()) {
+                String line = fallbackScanner.nextLine().replace("\r", "");
+                return line.toCharArray();
+            }
             return new char[0];
         }
-
-        return password;
     }
 
     /**
@@ -64,33 +67,16 @@ public class ConsoleReader {
      * @throws IllegalArgumentException if passwords do not match.
      */
     public char[] readAndConfirmPassword(String prompt, String confirmPrompt) {
-        char[] pass1 = readPassword(prompt);
-        char[] pass2 = readPassword(confirmPrompt);
+        char[] pwd1 = readPassword(prompt);
+        char[] pwd2 = readPassword(confirmPrompt);
 
-        if (!MemoryWiper.isEqual(pass1, pass2)) {
-            MemoryWiper.wipe(pass1);
-            MemoryWiper.wipe(pass2);
-            throw new IllegalArgumentException("Passwords do not match. Please try again.");
+        if (!Arrays.equals(pwd1, pwd2)) {
+            MemoryWiper.wipe(pwd1);
+            MemoryWiper.wipe(pwd2);
+            throw new IllegalArgumentException("Passwords do not match.");
         }
 
-        // Wipe the confirmation copy immediately; return pass1
-        MemoryWiper.wipe(pass2);
-        return pass1;
-    }
-
-    /**
-     * Reads a non-sensitive text line (e.g., username, service name) from the console.
-     *
-     * @param prompt User-facing prompt message.
-     * @return Trimmed String input.
-     */
-    public String readLine(String prompt) {
-        if (!isConsoleAvailable()) {
-            logger.error("Attempted to read input line without an attached TTY console.");
-            throw new IllegalStateException("Interactive TTY console required.");
-        }
-
-        String input = console.readLine("%s", prompt);
-        return (input != null) ? input.trim() : "";
+        MemoryWiper.wipe(pwd2);
+        return pwd1;
     }
 }

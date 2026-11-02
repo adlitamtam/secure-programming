@@ -1,5 +1,7 @@
 package ee.taltech.passvault.storage;
 
+import ee.taltech.passvault.security.InputValidator;
+import ee.taltech.passvault.security.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,13 +30,16 @@ public class VaultItemDao {
      * Stores a new encrypted credential in the database.
      *
      * @param userId ID of the authenticated user.
-     * @param service Name/Domain of the target service (e.g., github.com).
+     * @param service Name/Domain of the target service (e.g., GitHub.com).
      * @param accountUsername Account username or email.
      * @param ciphertext AES-256-GCM encrypted password bytes.
      * @param nonce 12-byte initialization vector used during encryption.
      * @return true if stored successfully.
      */
     public boolean addVaultItem(int userId, String service, String accountUsername, byte[] ciphertext, byte[] nonce) {
+        InputValidator.validateUserId(userId);
+        InputValidator.validateService(service);
+        InputValidator.validateAccountUsername(accountUsername);
         String sql = "INSERT INTO vault_items (user_id, service, account_username, ciphertext, nonce) VALUES (?, ?, ?, ?, ?)";
 
         try (Connection conn = dbManager.getConnection();
@@ -47,11 +52,11 @@ public class VaultItemDao {
             pstmt.setBytes(5, nonce);
 
             int affectedRows = pstmt.executeUpdate();
-            logger.info("Vault item added for service '{}' under userId {}", service, userId);
+            logger.info("Vault item added for service '{}' under userId {}", LogSanitizer.sanitize(service), userId);
             return affectedRows > 0;
 
         } catch (SQLException e) {
-            logger.error("Database error adding item for service '{}' (userId {}): {}", service, userId, e.getMessage());
+            logger.error("Database error adding item for service '{}' (userId {}): {}", LogSanitizer.sanitize(service), userId, e.getMessage());
             return false;
         }
     }
@@ -63,7 +68,7 @@ public class VaultItemDao {
      * @return List of stored service names.
      */
     public List<String> getServicesForUser(int userId) {
-        String sql = "SELECT service FROM vault_items WHERE user_id = ? ORDER BY service ASC";
+        String sql = "SELECT service FROM vault_items WHERE user_id = ? ORDER BY service";
         List<String> services = new ArrayList<>();
 
         try (Connection conn = dbManager.getConnection();

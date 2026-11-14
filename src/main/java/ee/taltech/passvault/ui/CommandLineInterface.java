@@ -4,9 +4,11 @@ import ee.taltech.passvault.auth.AuthenticationService;
 import ee.taltech.passvault.auth.UserSession;
 import ee.taltech.passvault.crypto.MemoryWiper;
 import ee.taltech.passvault.security.InputValidator;
+import ee.taltech.passvault.security.LogSanitizer;
 import ee.taltech.passvault.storage.VaultService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.util.List;
 
@@ -40,6 +42,7 @@ public class CommandLineInterface {
                 activeSession.invalidate();
                 logger.info("Shutdown hook executed: Active session memory wiped.");
             }
+            MDC.clear();
         }));
         printHeader();
         boolean running = true;
@@ -137,6 +140,7 @@ public class CommandLineInterface {
                 this.activeSession = sessionOpt.get();
                 this.isLoggedIn = true;
                 this.activeUser = activeSession.getUsername();
+                MDC.put("user", LogSanitizer.sanitize(activeUser));
                 System.out.println("SUCCESS: Vault unlocked for user '" + activeUser + "'.");
             } else {
                 System.out.println("Authentication failed: Invalid username or master password.");
@@ -304,6 +308,8 @@ public class CommandLineInterface {
             activeSession.invalidate();
             activeSession = null;
         }
+        logger.info("User logged out and vault locked.");
+        MDC.clear();
         System.out.println("Vault locked. Active session and encryption keys cleared from memory.");
         this.isLoggedIn = false;
         this.activeUser = null;

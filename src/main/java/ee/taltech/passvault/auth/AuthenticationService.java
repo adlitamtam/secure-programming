@@ -65,6 +65,11 @@ public class AuthenticationService {
      * @return Optional containing UserSession if authentication succeeds, empty otherwise.
      */
     public Optional<UserSession> authenticate(String username, char[] masterPassword) {
+        long lockedSeconds = userDao.getRemainingLockoutSeconds();
+        if (lockedSeconds > 0) {
+            throw new IllegalStateException("Too many failed attempts. Try again in " + lockedSeconds + " seconds.");
+        }
+
         if (username == null || username.isBlank() || masterPassword == null || masterPassword.length == 0) {
             return Optional.empty();
         }
@@ -72,6 +77,8 @@ public class AuthenticationService {
         Optional<User> userOpt = userDao.getUserByUsername(username);
         if (userOpt.isEmpty()) {
             logger.warn("Authentication failed: User '{}' not found.", username);
+            userDao.recordFailedAttempt();
+            checkIfNowLocked();
             return Optional.empty();
         }
 
@@ -86,6 +93,8 @@ public class AuthenticationService {
 
             if (!constantTimeEquals(computedHashHex, storedHashHex)) {
                 logger.warn("Authentication failed: Invalid master password for user '{}'.", username);
+                userDao.recordFailedAttempt();
+                checkIfNowLocked();
                 return Optional.empty();
             }
 
@@ -118,5 +127,12 @@ public class AuthenticationService {
             result |= aBytes[i] ^ bBytes[i];
         }
         return result == 0;
+    }
+
+    private void checkIfNowLocked() {
+        long lockedSeconds = userDao.getRemainingLockoutSeconds();
+        if (lockedSeconds > 0) {
+            throw new IllegalStateException("Too many failed attempts. Locked for " + lockedSeconds + " seconds.");
+        }
     }
 }

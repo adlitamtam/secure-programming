@@ -88,4 +88,60 @@ public class UserDao {
         }
         return Optional.empty();
     }
+
+    public long getRemainingLockoutSeconds() {
+        String sql = "SELECT locked_until FROM lockout WHERE id = 1";
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+
+            if (rs.next()) {
+                long lockedUntil = rs.getLong("locked_until");
+                long now = System.currentTimeMillis();
+
+                if (lockedUntil > now) {
+                    return (lockedUntil - now) / 1000 + 1;
+                } else if (lockedUntil > 0) {
+                    resetLockout();
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Error reading lockout state", e);
+        }
+        return 0;
+    }
+
+    public void recordFailedAttempt() {
+        try (Connection conn = dbManager.getConnection()) {
+            try (PreparedStatement update = conn.prepareStatement(
+                    "UPDATE lockout SET attempts = attempts + 1 WHERE id = 1")) {
+                update.executeUpdate();
+            }
+
+            try (PreparedStatement check = conn.prepareStatement("SELECT attempts FROM lockout WHERE id = 1");
+                 ResultSet rs = check.executeQuery()) {
+                if (rs.next() && rs.getInt("attempts") >= 5) {
+                    long lockUntil = System.currentTimeMillis() + 60_000L; // + 60 seconds
+                    try (PreparedStatement lock = conn.prepareStatement(
+                            "UPDATE lockout SET locked_until = ? WHERE id = 1")) {
+                        lock.setLong(1, lockUntil);
+                        lock.executeUpdate();
+                    }
+                    logger.warn("Login locked for 60 seconds after 5 failed attempts.");
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Error updating lockout state", e);
+        }
+    }
+
+    public void resetLockout() {
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(
+                     "UPDATE lockout SET attempts = 0, locked_until = 0 WHERE id = 1")) {
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            logger.error("Error resetting lockout state", e);
+        }
+    }
 }

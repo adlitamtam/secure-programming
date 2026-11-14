@@ -83,6 +83,8 @@ public class DatabaseManager {
 
             stmt.execute(createUsersTable);
             stmt.execute(createVaultItemsTable);
+            stmt.execute("CREATE TABLE IF NOT EXISTS lockout (id INTEGER PRIMARY KEY, attempts INTEGER DEFAULT 0, locked_until INTEGER DEFAULT 0);");
+            stmt.execute("INSERT OR IGNORE INTO lockout (id, attempts, locked_until) VALUES (1, 0, 0);");
 
             logger.info("Database schema initialized and validated successfully.");
             return true;

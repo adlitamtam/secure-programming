@@ -141,6 +141,8 @@ public class CommandLineInterface {
             } else {
                 System.out.println("Authentication failed: Invalid username or master password.");
             }
+        } catch (IllegalStateException e) {
+            System.out.println("LOCKED: " + e.getMessage());
         } catch (IllegalArgumentException e) {
             System.out.println("Authentication failed: Invalid input format.");
         } finally {

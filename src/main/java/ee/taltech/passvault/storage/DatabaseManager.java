@@ -3,8 +3,7 @@ package ee.taltech.passvault.storage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.nio.charset.StandardCharsets;
+import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -20,8 +19,7 @@ public class DatabaseManager {
     private static final String DB_URL = "jdbc:sqlite:" + DB_FILE + "?busy_timeout=5000";
     private static DatabaseManager instance;
 
-    private DatabaseManager() {
-    }
+    private DatabaseManager() {}
 
     public static synchronized DatabaseManager getInstance() {
         if (instance == null) {
@@ -31,89 +29,69 @@ public class DatabaseManager {
     }
 
     /**
-     * Obtains a fresh database connection.
+     * Opens a connection and guarantees that the schema exists (self-healing if DB was deleted at runtime).
      */
     public Connection getConnection() throws SQLException {
         Connection conn = DriverManager.getConnection(DB_URL);
         try (Statement stmt = conn.createStatement()) {
             stmt.execute("PRAGMA foreign_keys = ON;");
             stmt.execute("PRAGMA journal_mode = WAL;");
+            ensureTablesExist(stmt);
         }
         return conn;
     }
 
     /**
-     * Pre-flight health check to verify write permissions and create tables if needed.
-     *
-     * @return true if database is fully operational, false if severe I/O errors occur.
+     * Startup check to verify write access and initialize the database.
      */
     public boolean initializeAndValidate() {
-        File dbFile = new File(DB_FILE);
-        File parentDir = dbFile.getAbsoluteFile().getParentFile();
-
+        File parentDir = new File(DB_FILE).getAbsoluteFile().getParentFile();
         if (parentDir != null && !parentDir.canWrite()) {
             logger.error("Database directory is not writable: {}", parentDir.getAbsolutePath());
-            System.err.println("Critical Error: Cannot write to database directory. Check file permissions.");
+            System.err.println("Critical Error: Cannot write to database directory.");
             return false;
         }
 
-        try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement()) {
-
-            String createUsersTable = """
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT UNIQUE NOT NULL,
-                    salt BLOB NOT NULL,
-                    auth_hash TEXT NOT NULL
-                );
-            """;
-
-            String createVaultItemsTable = """
-                CREATE TABLE IF NOT EXISTS vault_items (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    service TEXT NOT NULL,
-                    account_username TEXT NOT NULL,
-                    ciphertext BLOB NOT NULL,
-                    nonce BLOB NOT NULL,
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-                );
-            """;
-
-            stmt.execute(createUsersTable);
-            stmt.execute(createVaultItemsTable);
-            stmt.execute("CREATE TABLE IF NOT EXISTS lockout (id INTEGER PRIMARY KEY, attempts INTEGER DEFAULT 0, locked_until INTEGER DEFAULT 0);");
-            stmt.execute("INSERT OR IGNORE INTO lockout (id, attempts, locked_until) VALUES (1, 0, 0);");
-
-            logger.info("Database schema initialized and validated successfully.");
+        try (Connection conn = getConnection()) {
+            logger.info("Database initialized successfully.");
             return true;
-
         } catch (SQLException e) {
             logger.error("Failed to initialize database: {}", e.getMessage());
-            System.err.println("Critical Error: Could not connect to or setup database. " + e.getMessage());
+            System.err.println("Critical Error: " + e.getMessage());
             return false;
         }
     }
 
-    /**
-     * Checks if the database file still exists and contains the required schema.
-     * Used during runtime to detect accidental DB file deletion.
-     */
-    public boolean isDatabaseAlive() {
-        File dbFile = new File(DB_FILE);
-        if (!dbFile.exists()) {
-            logger.warn("Database file '{}' was deleted at runtime!", DB_FILE);
-            return false;
-        }
+    private void ensureTablesExist(Statement stmt) throws SQLException {
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                salt BLOB NOT NULL,
+                auth_hash TEXT NOT NULL
+            );
+        """);
 
-        try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement()) {
-            stmt.executeQuery("SELECT 1 FROM users LIMIT 1");
-            return true;
-        } catch (SQLException e) {
-            logger.warn("Database health check failed: {}", e.getMessage());
-            return false;
-        }
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS vault_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                service TEXT NOT NULL,
+                account_username TEXT NOT NULL,
+                ciphertext BLOB NOT NULL,
+                nonce BLOB NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+        """);
+
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS lockout (
+                id INTEGER PRIMARY KEY,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                locked_until INTEGER NOT NULL DEFAULT 0
+            );
+        """);
+
+        stmt.execute("INSERT OR IGNORE INTO lockout (id, attempts, locked_until) VALUES (1, 0, 0);");
     }
 }

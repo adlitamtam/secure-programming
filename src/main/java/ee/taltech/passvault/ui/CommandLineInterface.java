@@ -96,7 +96,6 @@ public class CommandLineInterface {
     }
 
     private void handleRegister() {
-        if (!verifyDatabaseHealth()) return;
         System.out.println("\n--- User Registration ---");
         String username = consoleReader.readLine("Enter new username: ");
         char[] masterPassword = null;
@@ -127,7 +126,6 @@ public class CommandLineInterface {
     }
 
     private void handleLogin() {
-        if (!verifyDatabaseHealth()) return;
         System.out.println("\n--- Vault Login ---");
         String username = consoleReader.readLine("Username: ");
         char[] masterPassword = consoleReader.readPassword("Master Password: ");
@@ -216,7 +214,6 @@ public class CommandLineInterface {
     }
 
     private void handleAddCredential(String service) {
-        if (!verifyDatabaseHealth()) return;
         if (service.isBlank()) {
             service = consoleReader.readLine("Enter service/domain name (e.g. github.com): ");
         }
@@ -247,7 +244,6 @@ public class CommandLineInterface {
     }
 
     private void handleGetCredential(String service) {
-        if (!verifyDatabaseHealth()) return;
         if (service.isBlank()) {
             service = consoleReader.readLine("Enter service name to retrieve: ");
         }
@@ -279,7 +275,6 @@ public class CommandLineInterface {
     }
 
     private void handleDeleteCredential(String service) {
-        if (!verifyDatabaseHealth()) return;
         if (service.isBlank()) {
             service = consoleReader.readLine("Enter service name to delete: ");
         }
@@ -318,16 +313,5 @@ public class CommandLineInterface {
     private void shutdown() {
         clipboardService.shutdown();
         logger.info("Application shut down cleanly.");
-    }
-
-    private boolean verifyDatabaseHealth() {
-        if (!ee.taltech.passvault.storage.DatabaseManager.getInstance().isDatabaseAlive()) {
-            System.out.println("\n[ERROR] Database file is missing or corrupted!");
-            System.out.println("Emergency action: Re-initializing schema. Active session will be locked.");
-            handleLogout();
-            ee.taltech.passvault.storage.DatabaseManager.getInstance().initializeAndValidate();
-            return false;
-        }
-        return true;
     }
 }

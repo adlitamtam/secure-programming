@@ -104,4 +104,13 @@ public class VaultCipher {
         }
         return chars;
     }
+
+    /**
+     * Builds context-bound Additional Authenticated Data (AAD) to prevent
+     * row-swapping or metadata tampering in SQLite.
+     */
+    public static byte[] buildContextAad(int userId, String service, String accountUsername) {
+        String context = userId + "|" + service.trim() + "|" + accountUsername.trim();
+        return context.getBytes(StandardCharsets.UTF_8);
+    }
 }

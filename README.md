@@ -48,6 +48,8 @@ PassVault runs locally and stores its data in an embedded SQLite database (`vaul
 ## 3. Build and Run
 
 ### Clone and Build
+
+### Option A: Run Locally with Maven
 ```bash
 git clone [https://github.com/adlitamtam/secure-programming.git](https://github.com/adlitamtam/secure-programming.git)
 cd pw-manager
@@ -55,10 +57,18 @@ mvn clean package
 ```
 This compiles the project, runs the unit tests, and creates the runnable JAR file in target/passvault.jar.
 
-### Start the Application
+Start the Application:
 Run the JAR from the project root directory (so SQLite uses the local vault.db file):
 ```bash
 java -jar target/passvault.jar
+```
+
+### Option B: Run with Docker
+
+It's also possible to build and run PassVault inside a container (-it is required for the interactive CLI, and -v persists vault.db and passvault.log across restarts):
+```bash
+docker build -t passvault .
+docker run -it --rm -v passvault-data:/app/data passvault
 ```
 
 ---

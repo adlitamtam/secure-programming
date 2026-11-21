@@ -35,26 +35,31 @@ public class ClipboardService {
 
             logger.info("Copied secret to clipboard. Auto-clear in {}s.", timeoutSeconds);
 
-            Thread clearThread = new Thread(() -> {
-                try {
-                    Thread.sleep(timeoutSeconds * 1000L);
-                    clipboard.setContents(new StringSelection(""), null);
-                    logger.info("Clipboard auto-cleared.");
-                    System.out.println("\n[NOTICE] Clipboard cleared.");
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                } catch (Throwable e) {
-                    logger.error("Failed to clear clipboard: {}", e.getMessage());
-                }
-            });
-
-            clearThread.setDaemon(true);
+            Thread clearThread = createClearThread(timeoutSeconds, clipboard);
             clearThread.start();
 
         } catch (Throwable e) {
             logger.error("Clipboard unavailable: {}", e.getMessage());
             System.err.println("Warning: System clipboard unavailable in this environment.");
         }
+    }
+
+    private static Thread createClearThread(int timeoutSeconds, Clipboard clipboard) {
+        Thread clearThread = new Thread(() -> {
+            try {
+                Thread.sleep(timeoutSeconds * 1000L);
+                clipboard.setContents(new StringSelection(""), null);
+                logger.info("Clipboard auto-cleared.");
+                System.out.println("\n[NOTICE] Clipboard cleared.");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (Throwable e) {
+                logger.error("Failed to clear clipboard: {}", e.getMessage());
+            }
+        });
+
+        clearThread.setDaemon(true);
+        return clearThread;
     }
 
     public void shutdown() {

@@ -7,9 +7,10 @@ import ee.taltech.passvault.security.LogSanitizer;
 import ee.taltech.passvault.storage.UserDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 
 import java.util.HexFormat;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -94,12 +95,16 @@ public class AuthenticationService {
         byte[] derivedAuthKey = null;
         byte[] encSalt = null;
 
-        try {
-            derivedAuthKey = keyDerivationService.deriveKey(masterPassword, user.getSalt());
+        try {derivedAuthKey = keyDerivationService.deriveKey(masterPassword, user.getSalt());
             String computedHashHex = HexFormat.of().formatHex(derivedAuthKey).toLowerCase();
             String storedHashHex = user.getAuthHash().toLowerCase();
 
-            if (!constantTimeEquals(computedHashHex, storedHashHex)) {
+            boolean hashesMatch = MessageDigest.isEqual(
+                    computedHashHex.getBytes(StandardCharsets.UTF_8),
+                    storedHashHex.getBytes(StandardCharsets.UTF_8)
+            );
+
+            if (!hashesMatch) {
                 logger.warn("Authentication failed: Invalid master password for user '{}'.", safeUsername);
                 userDao.recordFailedAttempt();
                 checkIfNowLocked();
@@ -119,25 +124,6 @@ public class AuthenticationService {
             MemoryWiper.wipe(derivedAuthKey);
             MemoryWiper.wipe(encSalt);
         }
-    }
-
-    /**
-     * Constant-time string comparison to mitigate timing attacks.
-     */
-    private boolean constantTimeEquals(String a, String b) {
-        if (a == null || b == null) {
-            return Objects.equals(a, b);
-        }
-        byte[] aBytes = a.getBytes();
-        byte[] bBytes = b.getBytes();
-        if (aBytes.length != bBytes.length) {
-            return false;
-        }
-        int result = 0;
-        for (int i = 0; i < aBytes.length; i++) {
-            result |= aBytes[i] ^ bBytes[i];
-        }
-        return result == 0;
     }
 
     private void checkIfNowLocked() {

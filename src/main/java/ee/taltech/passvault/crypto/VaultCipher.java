@@ -25,8 +25,8 @@ public class VaultCipher {
      * Encrypts a plaintext password char array using AES-256-GCM.
      *
      * @param plaintextPassword Password to encrypt (char[]).
-     * @param key 256-bit encryption key (K_enc).
-     * @param nonce 12-byte initialization vector.
+     * @param key               256-bit encryption key (K_enc).
+     * @param nonce             12-byte initialization vector.
      * @return Encrypted ciphertext bytes including GCM authentication tag.
      */
     public byte[] encrypt(char[] plaintextPassword, byte[] key, byte[] nonce) {
@@ -57,8 +57,8 @@ public class VaultCipher {
      * Decrypts an AES-256-GCM ciphertext back into a plaintext password char array.
      *
      * @param ciphertext Encrypted bytes.
-     * @param key 256-bit encryption key (K_enc).
-     * @param nonce 12-byte initialization vector.
+     * @param key        256-bit encryption key (K_enc).
+     * @param nonce      12-byte initialization vector.
      * @return Decrypted password as char array.
      */
     public char[] decrypt(byte[] ciphertext, byte[] key, byte[] nonce) {
@@ -103,14 +103,5 @@ public class VaultCipher {
             MemoryWiper.wipe(charBuffer.array());
         }
         return chars;
-    }
-
-    /**
-     * Builds context-bound Additional Authenticated Data (AAD) to prevent
-     * row-swapping or metadata tampering in SQLite.
-     */
-    public static byte[] buildContextAad(int userId, String service, String accountUsername) {
-        String context = userId + "|" + service.trim() + "|" + accountUsername.trim();
-        return context.getBytes(StandardCharsets.UTF_8);
     }
 }

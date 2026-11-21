@@ -7,10 +7,9 @@ import java.security.SecureRandom;
  */
 public class SecureRandomUtils {
 
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-
     public static final int SALT_LENGTH_BYTES = 16;
     public static final int GCM_NONCE_LENGTH_BYTES = 12;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private SecureRandomUtils() {
         // Utility class

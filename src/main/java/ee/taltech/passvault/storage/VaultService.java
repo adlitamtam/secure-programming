@@ -43,11 +43,6 @@ public class VaultService {
     }
 
     /**
-     * Container record for holding retrieved vault item credentials.
-     */
-    public record DecryptedCredential(String accountUsername, char[] password) {}
-
-    /**
      * Fetches and decrypts a vault item by service name.
      *
      * @param session Active user session.
@@ -79,5 +74,11 @@ public class VaultService {
             return false;
         }
         return vaultItemDao.deleteVaultItem(session.getUserId(), service);
+    }
+
+    /**
+     * Container record for holding retrieved vault item credentials.
+     */
+    public record DecryptedCredential(String accountUsername, char[] password) {
     }
 }

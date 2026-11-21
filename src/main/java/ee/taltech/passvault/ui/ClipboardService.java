@@ -3,8 +3,7 @@ package ee.taltech.passvault.ui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.awt.GraphicsEnvironment;
-import java.awt.Toolkit;
+import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 

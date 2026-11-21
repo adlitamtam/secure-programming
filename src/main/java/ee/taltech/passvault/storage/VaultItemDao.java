@@ -29,11 +29,11 @@ public class VaultItemDao {
     /**
      * Stores a new encrypted credential in the database.
      *
-     * @param userId ID of the authenticated user.
-     * @param service Name/Domain of the target service (e.g., GitHub.com).
+     * @param userId          ID of the authenticated user.
+     * @param service         Name/Domain of the target service (e.g., GitHub.com).
      * @param accountUsername Account username or email.
-     * @param ciphertext AES-256-GCM encrypted password bytes.
-     * @param nonce 12-byte initialization vector used during encryption.
+     * @param ciphertext      AES-256-GCM encrypted password bytes.
+     * @param nonce           12-byte initialization vector used during encryption.
      * @return true if stored successfully.
      */
     public boolean addVaultItem(int userId, String service, String accountUsername, byte[] ciphertext, byte[] nonce) {
@@ -91,7 +91,7 @@ public class VaultItemDao {
      * Fetches a specific vault item for a user by service name.
      * Enforces per-user isolation: user_id = ?
      *
-     * @param userId ID of the authenticated user.
+     * @param userId  ID of the authenticated user.
      * @param service Service name to query.
      * @return Optional containing the VaultItem if found and owned by user.
      */
@@ -126,7 +126,7 @@ public class VaultItemDao {
     /**
      * Deletes a credential entry owned by the user.
      *
-     * @param userId ID of the authenticated user.
+     * @param userId  ID of the authenticated user.
      * @param service Service name to remove.
      * @return true if an entry was deleted.
      */

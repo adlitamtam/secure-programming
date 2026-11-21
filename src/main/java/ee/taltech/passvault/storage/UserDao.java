@@ -29,7 +29,7 @@ public class UserDao {
      * Inserts a new user record into the database.
      *
      * @param username Unique username.
-     * @param salt Cryptographic random salt for key derivation.
+     * @param salt     Cryptographic random salt for key derivation.
      * @param authHash Derived authentication hash (Argon2id).
      * @return true if user was successfully created, false if username already exists.
      */

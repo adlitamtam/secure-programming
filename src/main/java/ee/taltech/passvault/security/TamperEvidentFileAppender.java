@@ -23,6 +23,71 @@ public class TamperEvidentFileAppender extends RollingFileAppender<ILoggingEvent
     private static final String SIG_PREFIX = " [sig=";
     private String previousHash = GENESIS_HASH;
 
+    /**
+     * Verifies the SHA-256 hash chain of the existing log file on startup.
+     *
+     * @return true if intact or file does not exist yet; false if tampering is detected.
+     */
+    public static boolean verifyLogIntegrity(String filePath) {
+        Path path = Path.of(filePath);
+        if (!Files.exists(path)) {
+            return true;
+        }
+
+        try {
+            List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
+            String expectedPrevHash = GENESIS_HASH;
+
+            for (String line : lines) {
+                if (line.isBlank()) {
+                    continue;
+                }
+                int sigIndex = line.lastIndexOf(SIG_PREFIX);
+                if (sigIndex == -1 || !line.endsWith("]")) {
+                    return false; // Missing or malformed signature
+                }
+
+                String rawMessage = line.substring(0, sigIndex);
+                String recordedHash = line.substring(sigIndex + SIG_PREFIX.length(), line.length() - 1);
+                String recomputedHash = computeSha256(expectedPrevHash + "|" + rawMessage);
+
+                if (!MessageDigest.isEqual(
+                        recordedHash.getBytes(StandardCharsets.UTF_8),
+                        recomputedHash.getBytes(StandardCharsets.UTF_8))) {
+                    return false; // Hash mismatch -> line was modified or deleted
+                }
+                expectedPrevHash = recordedHash;
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static void restrictPermissions(File file) {
+        if (!file.exists()) {
+            return;
+        }
+        try {
+            Files.setPosixFilePermissions(file.toPath(), PosixFilePermissions.fromString("rw-------"));
+        } catch (UnsupportedOperationException | IOException ignored) {
+            file.setReadable(false, false);
+            file.setReadable(true, true);
+            file.setWritable(false, false);
+            file.setWritable(true, true);
+        }
+    }
+
+    private static String computeSha256(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (Exception e) {
+            throw new IllegalStateException("SHA-256 algorithm unavailable", e);
+        }
+    }
+
     @Override
     public void start() {
         super.start();
@@ -77,47 +142,6 @@ public class TamperEvidentFileAppender extends RollingFileAppender<ILoggingEvent
         this.previousHash = currentHash;
     }
 
-    /**
-     * Verifies the SHA-256 hash chain of the existing log file on startup.
-     *
-     * @return true if intact or file does not exist yet; false if tampering is detected.
-     */
-    public static boolean verifyLogIntegrity(String filePath) {
-        Path path = Path.of(filePath);
-        if (!Files.exists(path)) {
-            return true;
-        }
-
-        try {
-            List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
-            String expectedPrevHash = GENESIS_HASH;
-
-            for (String line : lines) {
-                if (line.isBlank()) {
-                    continue;
-                }
-                int sigIndex = line.lastIndexOf(SIG_PREFIX);
-                if (sigIndex == -1 || !line.endsWith("]")) {
-                    return false; // Missing or malformed signature
-                }
-
-                String rawMessage = line.substring(0, sigIndex);
-                String recordedHash = line.substring(sigIndex + SIG_PREFIX.length(), line.length() - 1);
-                String recomputedHash = computeSha256(expectedPrevHash + "|" + rawMessage);
-
-                if (!MessageDigest.isEqual(
-                        recordedHash.getBytes(StandardCharsets.UTF_8),
-                        recomputedHash.getBytes(StandardCharsets.UTF_8))) {
-                    return false; // Hash mismatch -> line was modified or deleted
-                }
-                expectedPrevHash = recordedHash;
-            }
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
     private String loadLastHash(File logFile) {
         if (!logFile.exists() || logFile.length() == 0) {
             return GENESIS_HASH;
@@ -134,29 +158,5 @@ public class TamperEvidentFileAppender extends RollingFileAppender<ILoggingEvent
         } catch (IOException ignored) {
         }
         return GENESIS_HASH;
-    }
-
-    private static void restrictPermissions(File file) {
-        if (!file.exists()) {
-            return;
-        }
-        try {
-            Files.setPosixFilePermissions(file.toPath(), PosixFilePermissions.fromString("rw-------"));
-        } catch (UnsupportedOperationException | IOException ignored) {
-            file.setReadable(false, false);
-            file.setReadable(true, true);
-            file.setWritable(false, false);
-            file.setWritable(true, true);
-        }
-    }
-
-    private static String computeSha256(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash);
-        } catch (Exception e) {
-            throw new IllegalStateException("SHA-256 algorithm unavailable", e);
-        }
     }
 }

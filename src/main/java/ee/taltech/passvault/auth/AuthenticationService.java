@@ -29,7 +29,7 @@ public class AuthenticationService {
      * Registers a new user in the database.
      * Generates a unique 16-byte salt and derives the authentication hash using Argon2id.
      *
-     * @param username Desired username.
+     * @param username       Desired username.
      * @param masterPassword User's master password (char[]).
      * @return true if registration succeeded, false if username exists.
      */
@@ -60,7 +60,7 @@ public class AuthenticationService {
      * Authenticates a user against stored master password hash.
      * If successful, returns the derived encryption key (K_enc) for vault decryption.
      *
-     * @param username Username attempting login.
+     * @param username       Username attempting login.
      * @param masterPassword Provided master password.
      * @return Optional containing UserSession if authentication succeeds, empty otherwise.
      */
@@ -76,6 +76,11 @@ public class AuthenticationService {
 
         Optional<User> userOpt = userDao.getUserByUsername(username);
         if (userOpt.isEmpty()) {
+            // Dummy Argon2id run to prevent username enumeration via response timing (Slide 35)
+            byte[] dummySalt = new byte[16];
+            byte[] dummyKey = keyDerivationService.deriveKey(masterPassword, dummySalt);
+            MemoryWiper.wipe(dummyKey);
+
             logger.warn("Authentication failed: User '{}' not found.", username);
             userDao.recordFailedAttempt();
             checkIfNowLocked();

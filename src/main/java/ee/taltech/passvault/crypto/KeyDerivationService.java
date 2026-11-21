@@ -14,8 +14,6 @@ import java.nio.charset.StandardCharsets;
  */
 public class KeyDerivationService {
 
-    private static final Logger logger = LoggerFactory.getLogger(KeyDerivationService.class);
-
     // Recommended parameters for Argon2id in university/production environments
     private static final int ARGON2_ITERATIONS = 3;
     private static final int ARGON2_MEMORY_KB = 65536; // 64 MB
@@ -26,7 +24,7 @@ public class KeyDerivationService {
      * Derives a 256-bit key from a master password and salt using Argon2id.
      *
      * @param password Master password as char array.
-     * @param salt Cryptographic random salt.
+     * @param salt     Cryptographic random salt.
      * @return Derived key bytes (256 bits).
      */
     public byte[] deriveKey(char[] password, byte[] salt) {

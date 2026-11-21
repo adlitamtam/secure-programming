@@ -61,7 +61,7 @@ public class ConsoleReader {
      * Reads a double-entered password and verifies that both matches.
      * Wipes intermediate buffers immediately if confirmation fails.
      *
-     * @param prompt Prompt for initial password.
+     * @param prompt        Prompt for initial password.
      * @param confirmPrompt Prompt for confirmation password.
      * @return Verified password as char array.
      * @throws IllegalArgumentException if passwords do not match.

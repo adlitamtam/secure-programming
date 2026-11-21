@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HexFormat;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -120,7 +121,7 @@ public class AuthenticationService {
      */
     private boolean constantTimeEquals(String a, String b) {
         if (a == null || b == null) {
-            return a == b;
+            return Objects.equals(a, b);
         }
         byte[] aBytes = a.getBytes();
         byte[] bBytes = b.getBytes();

@@ -53,7 +53,7 @@ public class DatabaseManager {
             return false;
         }
 
-        try (Connection conn = getConnection()) {
+        try (Connection ignored = getConnection()) {
             logger.info("Database initialized successfully.");
             return true;
         } catch (SQLException e) {

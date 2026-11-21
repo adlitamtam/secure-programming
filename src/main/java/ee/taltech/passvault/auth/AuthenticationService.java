@@ -3,6 +3,7 @@ package ee.taltech.passvault.auth;
 import ee.taltech.passvault.crypto.KeyDerivationService;
 import ee.taltech.passvault.crypto.MemoryWiper;
 import ee.taltech.passvault.crypto.SecureRandomUtils;
+import ee.taltech.passvault.security.LogSanitizer;
 import ee.taltech.passvault.storage.UserDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,14 +76,15 @@ public class AuthenticationService {
             return Optional.empty();
         }
 
+        String safeUsername = LogSanitizer.sanitize(username);
         Optional<User> userOpt = userDao.getUserByUsername(username);
         if (userOpt.isEmpty()) {
-            // Dummy Argon2id run to prevent username enumeration via response timing (Slide 35)
+            // Dummy Argon2id run to prevent username enumeration via response timing
             byte[] dummySalt = new byte[16];
             byte[] dummyKey = keyDerivationService.deriveKey(masterPassword, dummySalt);
             MemoryWiper.wipe(dummyKey);
 
-            logger.warn("Authentication failed: User '{}' not found.", username);
+            logger.warn("Authentication failed: User '{}' not found.", safeUsername);
             userDao.recordFailedAttempt();
             checkIfNowLocked();
             return Optional.empty();
@@ -90,7 +92,7 @@ public class AuthenticationService {
 
         User user = userOpt.get();
         byte[] derivedAuthKey = null;
-        byte[] encryptionKey = null;
+        byte[] encSalt = null;
 
         try {
             derivedAuthKey = keyDerivationService.deriveKey(masterPassword, user.getSalt());
@@ -98,21 +100,24 @@ public class AuthenticationService {
             String storedHashHex = user.getAuthHash().toLowerCase();
 
             if (!constantTimeEquals(computedHashHex, storedHashHex)) {
-                logger.warn("Authentication failed: Invalid master password for user '{}'.", username);
+                logger.warn("Authentication failed: Invalid master password for user '{}'.", safeUsername);
                 userDao.recordFailedAttempt();
                 checkIfNowLocked();
                 return Optional.empty();
             }
 
-            byte[] encSalt = user.getSalt().clone();
-            encSalt[0] ^= 0x01; // Domain Separation Byte
-            encryptionKey = keyDerivationService.deriveKey(masterPassword, encSalt);
+            userDao.resetLockout();
 
-            logger.info("Authentication successful for user '{}'. Session created.", username);
+            encSalt = user.getSalt().clone();
+            encSalt[0] ^= 0x01; // Domain Separation Byte
+            byte[] encryptionKey = keyDerivationService.deriveKey(masterPassword, encSalt);
+
+            logger.info("Authentication successful for user '{}'. Session created.", safeUsername);
             return Optional.of(new UserSession(user.getId(), user.getUsername(), encryptionKey));
 
         } finally {
             MemoryWiper.wipe(derivedAuthKey);
+            MemoryWiper.wipe(encSalt);
         }
     }
 

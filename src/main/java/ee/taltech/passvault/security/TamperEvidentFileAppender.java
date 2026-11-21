@@ -64,17 +64,21 @@ public class TamperEvidentFileAppender extends RollingFileAppender<ILoggingEvent
         }
     }
 
-    private static void restrictPermissions(File file) {
+    private void restrictPermissions(File file) {
         if (!file.exists()) {
             return;
         }
         try {
             Files.setPosixFilePermissions(file.toPath(), PosixFilePermissions.fromString("rw-------"));
         } catch (UnsupportedOperationException | IOException ignored) {
-            file.setReadable(false, false);
-            file.setReadable(true, true);
-            file.setWritable(false, false);
-            file.setWritable(true, true);
+            boolean r1 = file.setReadable(false, false);
+            boolean r2 = file.setReadable(true, true);
+            boolean w1 = file.setWritable(false, false);
+            boolean w2 = file.setWritable(true, true);
+
+            if (!(r1 && r2 && w1 && w2)) {
+                addWarn("Could not fully restrict file permissions on " + file.getName());
+            }
         }
     }
 

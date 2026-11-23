@@ -35,13 +35,13 @@ PassVault runs locally and stores its data in an embedded SQLite database (`vaul
 
 ## 2. Requirements & Dependencies
 
-- **Java:** JDK 21 or newer
+- **Java:** JDK 21 or newer (or Docker)
 - **Build Tool:** Apache Maven 3.8+
 - **Libraries (managed in `pom.xml`):**
-    - `org.bouncycastle:bcprov-jdk18on` (Argon2id key derivation)
-    - `org.xerial:sqlite-jdbc` (embedded SQLite database)
-    - `org.slf4j:slf4j-api` & `ch.qos.logback:logback-classic` (logging)
-    - `org.junit.jupiter:junit-jupiter` (unit testing)
+    - `org.bouncycastle:bcprov-jdk18on` `1.87` (Argon2id key derivation)
+    - `org.xerial:sqlite-jdbc` `3.54.1.0` (embedded SQLite database)
+    - `org.slf4j:slf4j-api` `2.0.20` & `ch.qos.logback:logback-classic` `1.6.7` (logging)
+    - `org.junit.jupiter:junit-jupiter` `6.1.3` (unit testing)
 
 ---
 

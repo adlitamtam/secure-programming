@@ -12,7 +12,6 @@ import java.nio.charset.StandardCharsets;
  */
 public class KeyDerivationService {
 
-    // Recommended parameters for Argon2id in university/production environments
     private static final int ARGON2_ITERATIONS = 3;
     private static final int ARGON2_MEMORY_KB = 65536; // 64 MB
     private static final int ARGON2_PARALLELISM = 1;

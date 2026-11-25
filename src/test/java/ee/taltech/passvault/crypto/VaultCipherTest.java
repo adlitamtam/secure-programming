@@ -15,7 +15,6 @@ class VaultCipherTest {
     @BeforeEach
     void setUp() {
         cipher = new VaultCipher();
-        // 256-bit dummy encryption key & 12-byte nonce
         secretKey = new byte[32];
         for (int i = 0; i < secretKey.length; i++) {
             secretKey[i] = (byte) (i + 1);

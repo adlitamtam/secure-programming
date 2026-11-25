@@ -3,13 +3,12 @@ package ee.taltech.passvault.crypto;
 import java.util.Arrays;
 
 /**
- * Utility class to securely zero-out sensitive byte and char arrays in memory,
- * and provide constant-time array comparisons to prevent timing attacks.
+ * Utility class to securely zero-out sensitive byte and char arrays in memory, and provide constant-time array
+ * comparisons to prevent timing attacks.
  */
 public class MemoryWiper {
 
     private MemoryWiper() {
-        // Utility class
     }
 
     /**

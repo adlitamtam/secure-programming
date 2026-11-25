@@ -95,7 +95,8 @@ public class AuthenticationService {
         byte[] derivedAuthKey = null;
         byte[] encSalt = null;
 
-        try {derivedAuthKey = keyDerivationService.deriveKey(masterPassword, user.getSalt());
+        try {
+            derivedAuthKey = keyDerivationService.deriveKey(masterPassword, user.getSalt());
             String computedHashHex = HexFormat.of().formatHex(derivedAuthKey).toLowerCase();
             String storedHashHex = user.getAuthHash().toLowerCase();
 

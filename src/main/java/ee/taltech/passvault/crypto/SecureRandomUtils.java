@@ -12,7 +12,6 @@ public class SecureRandomUtils {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private SecureRandomUtils() {
-        // Utility class
     }
 
     /**

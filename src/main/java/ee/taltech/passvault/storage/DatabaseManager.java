@@ -19,7 +19,7 @@ public class DatabaseManager {
     private static final String DB_URL = "jdbc:sqlite:" + DB_FILE + "?busy_timeout=5000";
     private static DatabaseManager instance;
 
-    private DatabaseManager() {
+    public DatabaseManager() {
     }
 
     public static synchronized DatabaseManager getInstance() {

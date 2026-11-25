@@ -49,10 +49,7 @@ class KeyDerivationServiceTest {
         byte[] key1 = keyDerivationService.deriveKey(password, salt1);
         byte[] key2 = keyDerivationService.deriveKey(password, salt2);
 
-        assertFalse(MemoryWiper.isEqual(
-                new String(key1).toCharArray(),
-                new String(key2).toCharArray()
-        ), "Keys derived with different salts must not match");
+        assertFalse(java.util.Arrays.equals(key1, key2), "Keys derived with different salts must not match");
     }
 
     @Test
